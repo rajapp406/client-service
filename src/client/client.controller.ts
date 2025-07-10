@@ -1,6 +1,6 @@
 import { Controller } from '@nestjs/common';
 import { GrpcMethod } from '@nestjs/microservices';
-import { ClientService } from './validate.service';
+import { ClientService } from './client.service';
 import { UserResponse } from './interfaces/user.interface';
 
 interface FetchUserRequest {
@@ -8,11 +8,11 @@ interface FetchUserRequest {
 }
 
 @Controller()
-export class ValidateController {
-  constructor(private readonly validateService: ClientService) {}
+export class ClientController {
+  constructor(private readonly clientService: ClientService) {}
 
   @GrpcMethod('ClientService', 'fetchUser')
   async fetchUser(data: FetchUserRequest): Promise<UserResponse> {
-    return this.validateService.fetchUser(data.userId);
+    return this.clientService.fetchUser(data.userId);
   }
 }

@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { join } from 'path';
-import { ValidateController } from './client/validate.controller';
-import { ClientService } from './client/validate.service';
+import { ClientController } from './client/client.controller';
+import { ClientService } from './client/client.service';
 
 @Module({
   imports: [
@@ -26,7 +26,7 @@ import { ClientService } from './client/validate.service';
       },
     ]),
   ],
-  controllers: [ValidateController],
+  controllers: [ClientController],
   providers: [ClientService],
   exports: [ClientService],
 })
