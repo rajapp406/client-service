@@ -1,10 +1,33 @@
 import { Module } from '@nestjs/common';
+import { ClientsModule, Transport } from '@nestjs/microservices';
+import { join } from 'path';
 import { ValidateController } from './client/validate.controller';
 import { ClientService } from './client/validate.service';
 
 @Module({
-  imports: [],
+  imports: [
+    ClientsModule.register([
+      {
+        name: 'CLIENT_SERVICE',
+        transport: Transport.GRPC,
+        options: {
+          package: 'client',
+          protoPath: join(__dirname, '../../common-modules/protocol/client.proto'),
+          url: '0.0.0.0:50522',
+          loader: {
+            keepCase: true,
+            longs: String,
+            enums: String,
+            defaults: true,
+            oneofs: true,
+            includeDirs: [join(__dirname, '../../common-modules/protocol')],
+          },
+        },
+      },
+    ]),
+  ],
   controllers: [ValidateController],
   providers: [ClientService],
+  exports: [ClientService],
 })
 export class AppModule {}
