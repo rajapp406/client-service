@@ -57,6 +57,7 @@ export class ClientController {
     description: 'The user has been successfully created.',
     type: UserResponse
   })
+  @GrpcMethod('ClientService', 'createUser')
   @ApiResponse({ status: 400, description: 'Invalid input data.' })
   @ApiResponse({ status: 409, description: 'Email already exists.' })
   async createUser(@Body() createUserDto: CreateUserDto): Promise<UserResponse> {

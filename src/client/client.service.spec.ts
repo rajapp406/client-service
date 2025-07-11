@@ -151,7 +151,7 @@ describe('ClientService', () => {
 
   describe('fetchUser', () => {
     it('should return a user if found', async () => {
-      const result = await service.fetchUser('test-user-123');
+      const result = await service.fetchUser({email: 'test-user-123', password: 'test-password-123'});
       expect(result).toEqual(expect.objectContaining({
         id: mockUser.id,
         name: mockUser.name,
@@ -174,7 +174,7 @@ describe('ClientService', () => {
     it('should throw NotFoundException when user is not found', async () => {
       jest.spyOn(prismaService.user, 'findUnique').mockResolvedValueOnce(null);
       
-      await expect(service.fetchUser('non-existent-id')).rejects.toThrow(
+      await expect(service.fetchUser({email: 'non-existent-id', password: ''})).rejects.toThrow(
         'User with ID non-existent-id not found',
       );
     });
