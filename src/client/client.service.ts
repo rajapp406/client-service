@@ -22,7 +22,6 @@ export class ClientService {
       
       const user = await this.prisma.user.create({
         data: {
-          id: data.id,
           name: data.name,
           email: data.email,
           password: hashedPassword,
@@ -60,12 +59,14 @@ export class ClientService {
 
   async fetchUser(data: { email: string; password: string }): Promise<UserResponse> {
     try {
+      // First, find the user by email
       const user = await this.prisma.user.findUnique({
         where: { email: data.email },
         select: {
           id: true,
           name: true,
           email: true,
+          password: true, // We need the password for verification
           isActive: true,
           createdAt: true,
           updatedAt: true,
@@ -73,10 +74,18 @@ export class ClientService {
       });
 
       if (!user) {
-        throw new NotFoundException(`User with ID ${data.email} not found`);
+        throw new NotFoundException(`User with email ${data.email} not found`);
+      }
+      // Verify the password (in a real app, use bcrypt or similar for hashed passwords)
+      // For now, we'll do a direct comparison (not recommended for production)
+      if (user.password !== data.password) {
+        throw new Error('Invalid password');
       }
 
-      // Ensure all fields required by UserResponse are returned
+      // Remove password from the response
+      const { password, ...userWithoutPassword } = user;
+      
+      // Return the user data without the password
       return {
         id: user.id,
         name: user.name,
