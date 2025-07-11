@@ -6,10 +6,15 @@ export class UserResponse {
   @IsUUID()
   id: string;
 
-  @ApiProperty({ description: 'The full name of the user', example: 'John Doe' })
+  @ApiProperty({ description: 'The first name of the user', example: 'John' })
   @IsString()
   @IsNotEmpty()
-  name: string;
+  firstName: string;
+
+  @ApiProperty({ description: 'The last name of the user', example: 'Doe' })
+  @IsString()
+  @IsNotEmpty()
+  lastName: string;
 
   @ApiProperty({ description: 'The email address of the user', example: 'john.doe@example.com' })
   @IsEmail()
@@ -31,10 +36,15 @@ export class CreateUserDto {
   @ApiProperty({ description: 'The unique identifier for the user (auto-generated)', readOnly: true })
   id?: string;
 
-  @ApiProperty({ description: 'The full name of the user', example: 'John Doe' })
+  @ApiProperty({ description: 'The first name of the user', example: 'John' })
   @IsString()
   @IsNotEmpty()
-  name: string;
+  firstName: string;
+
+  @ApiProperty({ description: 'The last name of the user', example: 'Doe' })
+  @IsString()
+  @IsNotEmpty()
+  lastName: string;
 
   @ApiProperty({ description: 'The email address of the user', example: 'john.doe@example.com' })
   @IsEmail()

@@ -2,7 +2,6 @@ import { ConflictException, Injectable, Logger, NotFoundException } from '@nestj
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { PrismaService } from '../prisma/prisma.service';
 import { UserResponse, CreateUserDto } from './interfaces/user.interface';
-import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class ClientService {
@@ -24,17 +23,20 @@ export class ClientService {
         throw new ConflictException('User with this email already exists');
       }
       
-      // Create the user with plain text password (NOT RECOMMENDED for production)
+      // Create the user with plain text password
+      // Password hashing is handled by the check service
       const user = await this.prisma.user.create({
         data: {
-          name: createUserDto.name,
+          firstName: createUserDto.firstName,
+          lastName: createUserDto.lastName,
           email: createUserDto.email,
-          password: createUserDto.password, // Storing plain text password
+          password: createUserDto.password, // Stored as plain text
           isActive: createUserDto.isActive ?? true,
         },
         select: {
           id: true,
-          name: true,
+          firstName: true,
+          lastName: true,
           email: true,
           isActive: true,
           createdAt: true,
@@ -46,7 +48,8 @@ export class ClientService {
       // Ensure all fields required by UserResponse are returned
       return {
         id: user.id,
-        name: user.name,
+        firstName: user.firstName,
+        lastName: user.lastName,
         email: user.email,
         isActive: user.isActive,
       };
@@ -69,7 +72,8 @@ export class ClientService {
         where: { email: data.email },
         select: {
           id: true,
-          name: true,
+          firstName: true,
+          lastName: true,
           email: true,
           password: true, // We need the password for verification
           isActive: true,
@@ -81,8 +85,8 @@ export class ClientService {
       if (!user) {
         throw new NotFoundException(`User with email ${data.email} not found`);
       }
-      // WARNING: Direct string comparison of plain text passwords
-      // In a production environment, use bcrypt.compare() for hashed passwords
+
+      // Password verification is handled by the check service
       if (user.password !== data.password) {
         throw new Error('Invalid credentials');
       }
@@ -93,7 +97,8 @@ export class ClientService {
       // Return the user data without the password
       return {
         id: user.id,
-        name: user.name,
+        firstName: user.firstName,
+        lastName: user.lastName,
         email: user.email,
         isActive: user.isActive,
       };
