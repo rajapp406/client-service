@@ -58,8 +58,6 @@ export class ClientService {
           name: true,
           email: true,
           isActive: true,
-          createdAt: true,
-          updatedAt: true,
         },
       });
 
@@ -73,8 +71,6 @@ export class ClientService {
         name: user.name,
         email: user.email,
         isActive: user.isActive,
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt,
       };
     } catch (error) {
       this.logger.error(`Error fetching user ${userId}:`, error);

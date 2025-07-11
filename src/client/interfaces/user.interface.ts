@@ -20,10 +20,10 @@ export class UserResponse {
   isActive: boolean;
 
   @ApiProperty({ description: 'The date and time when the user was created', type: Date })
-  createdAt: Date;
+  createdAt?: Date;
 
   @ApiProperty({ description: 'The date and time when the user was last updated', type: Date })
-  updatedAt: Date;
+  updatedAt?: Date;
 }
 
 export class CreateUserDto {

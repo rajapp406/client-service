@@ -37,7 +37,7 @@ function fetchUser(userId: string) {
 async function test() {
   try {
     console.log('Calling fetchUser with userId: test123');
-    await fetchUser('test123');
+    await fetchUser('61eb3e6c-4d44-47cf-bfe2-53cb16973579');
   } catch (error) {
     console.error('Test failed:', error);
   }
