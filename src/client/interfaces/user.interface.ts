@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsBoolean, IsEmail, IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
+import { IsBoolean, IsEmail, IsNotEmpty, IsOptional, IsString, IsUUID, MinLength } from 'class-validator';
 
 export class UserResponse {
   @ApiProperty({ description: 'The unique identifier of the user', example: '123e4567-e89b-12d3-a456-426614174000' })
@@ -39,6 +39,16 @@ export class CreateUserDto {
   @ApiProperty({ description: 'The email address of the user', example: 'john.doe@example.com' })
   @IsEmail()
   email: string;
+
+  @ApiProperty({ 
+    description: 'The password for the user account',
+    minLength: 8,
+    example: 'SecurePassword123!'
+  })
+  @IsString()
+  @IsNotEmpty()
+  @MinLength(8, { message: 'Password must be at least 8 characters long' })
+  password: string;
 
   @ApiProperty({ 
     description: 'Whether the user account is active', 

@@ -2,6 +2,7 @@ import { Injectable, Logger, NotFoundException, ConflictException } from '@nestj
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { PrismaService } from '../prisma/prisma.service';
 import { UserResponse, CreateUserDto } from './interfaces/user.interface';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class ClientService {
@@ -9,13 +10,22 @@ export class ClientService {
 
   constructor(private prisma: PrismaService) {}
 
+  private async hashPassword(password: string): Promise<string> {
+    const saltRounds = 10;
+    return await bcrypt.hash(password, saltRounds);
+  }
+
   async createUser(data: CreateUserDto): Promise<UserResponse> {
     try {
+      // Hash the password before storing it
+      const hashedPassword = await this.hashPassword(data.password);
+      
       const user = await this.prisma.user.create({
         data: {
           id: data.id,
           name: data.name,
           email: data.email,
+          password: hashedPassword,
           isActive: data.isActive ?? true,
         },
         select: {
@@ -35,16 +45,15 @@ export class ClientService {
         name: user.name,
         email: user.email,
         isActive: user.isActive,
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt,
       };
     } catch (error) {
-      if (error instanceof PrismaClientKnownRequestError) {
-        if (error.code === 'P2002') {
-          throw new ConflictException('Email already exists');
-        }
-      }
       this.logger.error('Error creating user:', error);
+      // Check for Prisma unique constraint violation
+      if ((error instanceof PrismaClientKnownRequestError || error?.name === 'PrismaClientKnownRequestError') && 
+          error.code === 'P2002' && 
+          error.meta?.target?.includes('email')) {
+        throw new ConflictException('Email already exists');
+      }
       throw error;
     }
   }
@@ -58,6 +67,8 @@ export class ClientService {
           name: true,
           email: true,
           isActive: true,
+          createdAt: true,
+          updatedAt: true,
         },
       });
 
