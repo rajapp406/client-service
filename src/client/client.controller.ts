@@ -26,7 +26,8 @@ import {
 } from './interfaces/user.interface';
 
 interface FetchUserRequest {
-  userId: string;
+  email: string;
+  password: string;
 }
 
 @ApiTags('Users')
@@ -41,7 +42,7 @@ export class ClientController {
   @ApiResponse({ status: 200, description: 'The user has been successfully found.', type: UserResponse })
   @ApiResponse({ status: 404, description: 'User not found.' })
   async getUser(@Param('id') id: string): Promise<UserResponse> {
-    const user = await this.clientService.fetchUser(id);
+    const user = await this.clientService.fetchUser({ email: id, password: '' });
     if (!user) {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
@@ -65,6 +66,6 @@ export class ClientController {
   // gRPC method (kept for backward compatibility)
   @GrpcMethod('ClientService', 'fetchUser')
   async fetchUserGrpc(@Payload() data: FetchUserRequest): Promise<UserResponse> {
-    return this.clientService.fetchUser(data.userId);
+    return this.clientService.fetchUser(data);
   }
 }

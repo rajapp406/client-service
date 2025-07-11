@@ -58,10 +58,10 @@ export class ClientService {
     }
   }
 
-  async fetchUser(userId: string): Promise<UserResponse> {
+  async fetchUser(data: { email: string; password: string }): Promise<UserResponse> {
     try {
       const user = await this.prisma.user.findUnique({
-        where: { id: userId },
+        where: { email: data.email },
         select: {
           id: true,
           name: true,
@@ -73,7 +73,7 @@ export class ClientService {
       });
 
       if (!user) {
-        throw new NotFoundException(`User with ID ${userId} not found`);
+        throw new NotFoundException(`User with ID ${data.email} not found`);
       }
 
       // Ensure all fields required by UserResponse are returned
@@ -84,7 +84,7 @@ export class ClientService {
         isActive: user.isActive,
       };
     } catch (error) {
-      this.logger.error(`Error fetching user ${userId}:`, error);
+      this.logger.error(`Error fetching user ${data.email}:`, error);
       throw error;
     }
   }
