@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException, ConflictException } from '@nestjs/common';
+import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { PrismaService } from '../prisma/prisma.service';
 import { UserResponse, CreateUserDto } from './interfaces/user.interface';
@@ -10,22 +10,27 @@ export class ClientService {
 
   constructor(private prisma: PrismaService) {}
 
-  private async hashPassword(password: string): Promise<string> {
-    const saltRounds = 10;
-    return await bcrypt.hash(password, saltRounds);
-  }
+  // WARNING: This service stores passwords in plain text for development/testing purposes only.
+  // In a production environment, always use proper password hashing (e.g., bcrypt).
 
-  async createUser(data: CreateUserDto): Promise<UserResponse> {
+  async createUser(createUserDto: CreateUserDto): Promise<UserResponse> {
     try {
-      // Hash the password before storing it
-      const hashedPassword = await this.hashPassword(data.password);
+      // Check if user with this email already exists
+      const existingUser = await this.prisma.user.findUnique({
+        where: { email: createUserDto.email },
+      });
+
+      if (existingUser) {
+        throw new ConflictException('User with this email already exists');
+      }
       
+      // Create the user with plain text password (NOT RECOMMENDED for production)
       const user = await this.prisma.user.create({
         data: {
-          name: data.name,
-          email: data.email,
-          password: hashedPassword,
-          isActive: data.isActive ?? true,
+          name: createUserDto.name,
+          email: createUserDto.email,
+          password: createUserDto.password, // Storing plain text password
+          isActive: createUserDto.isActive ?? true,
         },
         select: {
           id: true,
@@ -76,10 +81,10 @@ export class ClientService {
       if (!user) {
         throw new NotFoundException(`User with email ${data.email} not found`);
       }
-      // Verify the password (in a real app, use bcrypt or similar for hashed passwords)
-      // For now, we'll do a direct comparison (not recommended for production)
+      // WARNING: Direct string comparison of plain text passwords
+      // In a production environment, use bcrypt.compare() for hashed passwords
       if (user.password !== data.password) {
-        throw new Error('Invalid password');
+        throw new Error('Invalid credentials');
       }
 
       // Remove password from the response
