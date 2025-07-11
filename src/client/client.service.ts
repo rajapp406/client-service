@@ -70,6 +70,7 @@ export class ClientService {
   async fetchUser(data: { email: string; password: string }): Promise<UserResponse> {
     try {
       // First, find the user by email
+      console.log(data, 'data')
       const user = await this.prisma.user.findUnique({
         where: { email: data.email },
         select: {
@@ -87,11 +88,9 @@ export class ClientService {
       if (!user) {
         throw new NotFoundException(`User with email ${data.email} not found`);
       }
-
+console.log(user, 'user', data)
       // Password verification is handled by the check service
-      if (user.password !== data.password) {
-        throw new Error('Invalid credentials');
-      }
+
 
       // Remove password from the response
       const { password, ...userWithoutPassword } = user;
