@@ -1,11 +1,19 @@
 import { Module } from '@nestjs/common';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { join } from 'path';
-import { ClientController } from './client/client.controller';
-import { ClientService } from './client/client.service';
+import { ClientModule } from './client/client.module';
+import { PrismaModule } from './prisma/prisma.module';
+import { HttpModule } from '@nestjs/axios';
 
 @Module({
   imports: [
+    // Initialize Prisma as a global module
+    PrismaModule.forRoot({ isGlobal: true }),
+    
+    // Feature modules
+    ClientModule,
+    
+    // gRPC client configuration
     ClientsModule.register([
       {
         name: 'CLIENT_SERVICE',
@@ -25,9 +33,10 @@ import { ClientService } from './client/client.service';
         },
       },
     ]),
+    
+    // HTTP client module
+    HttpModule,
   ],
-  controllers: [ClientController],
-  providers: [ClientService],
-  exports: [ClientService],
+  exports: [ClientModule],
 })
 export class AppModule {}

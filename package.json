@@ -22,12 +22,18 @@
   "dependencies": {
     "@grpc/grpc-js": "^1.13.4",
     "@grpc/proto-loader": "^0.7.15",
+    "@nestjs/axios": "^4.0.0",
     "@nestjs/common": "^11.0.0",
     "@nestjs/core": "^11.0.0",
     "@nestjs/microservices": "^11.0.0",
     "@nestjs/platform-express": "^11.0.0",
+    "@nestjs/swagger": "^11.2.0",
+    "@prisma/client": "^6.11.1",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.2",
     "reflect-metadata": "^0.2.0",
-    "rxjs": "^7.8.1"
+    "rxjs": "^7.8.1",
+    "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.0",
@@ -41,6 +47,7 @@
     "@typescript-eslint/parser": "^6.0.0",
     "eslint": "^8.42.0",
     "jest": "29.5.0",
+    "prisma": "^6.11.1",
     "source-map-support": "^0.5.20",
     "supertest": "^6.3.3",
     "ts-jest": "29.1.0",
