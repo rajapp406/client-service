@@ -1,7 +1,14 @@
-import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, Logger, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { PrismaService } from '../prisma/prisma.service';
-import { UserResponse, CreateUserDto } from './interfaces/user.interface';
+import { 
+  UserResponse, 
+  CreateUserDto
+} from './interfaces/user.interface';
+import { 
+  UserProfileDto, 
+  CreateOrUpdateUserProfileDto 
+} from './interfaces/profile.interface';
 
 @Injectable()
 export class ClientService {
@@ -11,6 +18,87 @@ export class ClientService {
 
   // WARNING: This service stores passwords in plain text for development/testing purposes only.
   // In a production environment, always use proper password hashing (e.g., bcrypt).
+
+  async createOrUpdateUserProfile(
+    userId: string,
+    profileData: CreateOrUpdateUserProfileDto,
+  ): Promise<UserProfileDto> {
+    try {
+      // Check if user exists
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+      });
+
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
+      // Create or update the user profile
+      const profile = await this.prisma.userProfile.upsert({
+        where: { userId },
+        update: {
+          age: profileData.age,
+          gender: profileData.gender,
+          fitnessLevel: profileData.fitnessLevel,
+          goals: profileData.goals,
+          workoutFrequency: profileData.workoutFrequency,
+          preferredWorkouts: profileData.preferredWorkouts,
+        },
+        create: {
+          userId,
+          age: profileData.age,
+          gender: profileData.gender,
+          fitnessLevel: profileData.fitnessLevel,
+          goals: profileData.goals,
+          workoutFrequency: profileData.workoutFrequency,
+          preferredWorkouts: profileData.preferredWorkouts,
+        },
+        include: {
+          user: true,
+        },
+      });
+
+      // Convert to DTO
+      return this.mapToProfileDto(profile);
+    } catch (error) {
+      this.logger.error(`Failed to update user profile: ${error.message}`, error.stack);
+      throw error;
+    }
+  }
+
+  async getUserProfile(userId: string): Promise<UserProfileDto> {
+    try {
+      const profile = await this.prisma.userProfile.findUnique({
+        where: { userId },
+        include: {
+          user: true,
+        },
+      });
+
+      if (!profile) {
+        throw new NotFoundException('User profile not found');
+      }
+
+      return this.mapToProfileDto(profile);
+    } catch (error) {
+      this.logger.error(`Failed to get user profile: ${error.message}`, error.stack);
+      throw error;
+    }
+  }
+
+  private mapToProfileDto(profile: any): UserProfileDto {
+    return {
+      id: profile.id,
+      age: profile.age,
+      gender: profile.gender,
+      fitnessLevel: profile.fitnessLevel,
+      goals: profile.goals,
+      workoutFrequency: profile.workoutFrequency,
+      preferredWorkouts: profile.preferredWorkouts,
+      createdAt: profile.createdAt,
+      updatedAt: profile.updatedAt,
+    };
+  }
 
   async createUser(createUserDto: CreateUserDto): Promise<UserResponse> {
     try {
