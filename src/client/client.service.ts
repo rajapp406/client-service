@@ -37,6 +37,7 @@ export class ClientService {
           id: true,
           firstName: true,
           lastName: true,
+          password: true,
           email: true,
           isActive: true,
           createdAt: true,
@@ -50,6 +51,7 @@ export class ClientService {
         id: user.id,
         firstName: user.firstName,
         lastName: user.lastName,
+        password: user.password,
         email: user.email,
         isActive: user.isActive,
       };
@@ -98,6 +100,7 @@ export class ClientService {
       return {
         id: user.id,
         firstName: user.firstName,
+        password: user.password,
         lastName: user.lastName,
         email: user.email,
         isActive: user.isActive,

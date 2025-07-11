@@ -11,6 +11,11 @@ export class UserResponse {
   @IsNotEmpty()
   firstName: string;
 
+  @ApiProperty({ description: 'The password of the user', example: 'John' })
+  @IsString()
+  @IsNotEmpty()
+  password: string;
+
   @ApiProperty({ description: 'The last name of the user', example: 'Doe' })
   @IsString()
   @IsNotEmpty()
