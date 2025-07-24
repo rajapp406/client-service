@@ -117,7 +117,7 @@ export class ClientController {
   @ApiResponse({ status: 200, description: 'The user has been successfully found.', type: UserResponse })
   @ApiResponse({ status: 404, description: 'User not found.' })
   async getUser(@Param('id') id: string): Promise<UserResponse> {
-    const user = await this.clientService.fetchUser({ email: id, password: '' });
+    const user = await this.clientService.fetchUserById({ id });
     if (!user) {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
@@ -143,5 +143,29 @@ export class ClientController {
   @GrpcMethod('ClientService', 'fetchUser')
   async fetchUserGrpc(@Payload() data: FetchUserRequest): Promise<UserResponse> {
     return this.clientService.fetchUser(data);
+  }
+
+  @GrpcMethod('ClientService', 'createOrUpdateUserProfile')
+  async createOrUpdateUserProfileGrpc(
+    @Payload() data: any
+  ): Promise<any> {
+    // Accept the payload as-is, matching the proto structure
+    // and manually map fields to your service call
+    console.log('>>>> HIT gRPC CONTROLLER <<<<', data);
+    const { userId, age, gender, fitnessLevel, goals, workoutFrequency, preferredWorkouts } = data;
+    const profileData = { age, gender, fitnessLevel, goals, workoutFrequency, preferredWorkouts };
+    const profile = await this.clientService.createOrUpdateUserProfile(userId, profileData);
+    return this.clientService.mapToUserProfileDto(profile);
+  }
+
+  @GrpcMethod('ClientService', 'getUserProfile')
+  async getUserProfileGrpc(
+    @Payload() data: { userId: string }
+  ): Promise<any> {
+    const profile = await this.clientService.getUserProfile(data.userId);
+    if (!profile) {
+      throw new NotFoundException('Profile not found');
+    }
+    return this.clientService.mapToUserProfileDto(profile);
   }
 }

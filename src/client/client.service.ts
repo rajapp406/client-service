@@ -1,4 +1,5 @@
 import { ConflictException, Injectable, Logger, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { RpcException } from '@nestjs/microservices';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { PrismaService } from '../prisma/prisma.service';
 import { 
@@ -23,6 +24,7 @@ export class ClientService {
     userId: string,
     profileData: CreateOrUpdateUserProfileDto,
   ): Promise<UserProfileDto> {
+    console.log(userId, profileData, 'userId, profileData');
     try {
       // Check if user exists
       const user = await this.prisma.user.findUnique({
@@ -30,7 +32,10 @@ export class ClientService {
       });
 
       if (!user) {
-        throw new NotFoundException('User not found');
+        throw new RpcException({
+          code: 5, // NOT_FOUND
+          message: 'User not found',
+        });
       }
 
       // Create or update the user profile
@@ -59,7 +64,7 @@ export class ClientService {
       });
 
       // Convert to DTO
-      return this.mapToProfileDto(profile);
+      return this.mapToUserProfileDto(profile);
     } catch (error) {
       this.logger.error(`Failed to update user profile: ${error.message}`, error.stack);
       throw error;
@@ -70,23 +75,34 @@ export class ClientService {
     try {
       const profile = await this.prisma.userProfile.findUnique({
         where: { userId },
-        include: {
-          user: true,
+        select: {
+          id: true,
+          age: true,
+          gender: true,
+          fitnessLevel: true,
+          goals: true,
+          workoutFrequency: true,
+          preferredWorkouts: true,
         },
       });
 
       if (!profile) {
-        throw new NotFoundException('User profile not found');
+        throw new NotFoundException('Profile not found');
       }
 
-      return this.mapToProfileDto(profile);
+      return this.mapToUserProfileDto(profile);
     } catch (error) {
       this.logger.error(`Failed to get user profile: ${error.message}`, error.stack);
       throw error;
     }
   }
 
-  private mapToProfileDto(profile: any): UserProfileDto {
+  /**
+   * Maps a Prisma UserProfile to a UserProfileDto
+   * @param profile The Prisma UserProfile object
+   * @returns A UserProfileDto object
+   */
+  mapToProfileDto(profile: any): UserProfileDto {
     return {
       id: profile.id,
       age: profile.age,
@@ -95,9 +111,14 @@ export class ClientService {
       goals: profile.goals,
       workoutFrequency: profile.workoutFrequency,
       preferredWorkouts: profile.preferredWorkouts,
-      createdAt: profile.createdAt,
-      updatedAt: profile.updatedAt,
-    };
+    } as any;
+  }
+
+  /**
+   * Alias for mapToProfileDto for gRPC compatibility
+   */
+  mapToUserProfileDto(profile: any): UserProfileDto {
+    return this.mapToProfileDto(profile);
   }
 
   async createUser(createUserDto: CreateUserDto): Promise<UserResponse> {
@@ -170,6 +191,7 @@ export class ClientService {
           isActive: true,
           createdAt: true,
           updatedAt: true,
+          profile: true,
         },
       });
 
@@ -191,9 +213,54 @@ console.log(user, 'user', data)
         lastName: user.lastName,
         email: user.email,
         isActive: user.isActive,
+        profile: user.profile,
       };
     } catch (error) {
       this.logger.error(`Error fetching user ${data.email}:`, error);
+      throw error;
+    }
+  }
+  async fetchUserById(data: { id: string }): Promise<UserResponse> {
+    try {
+      // First, find the user by email
+      console.log(data, 'data')
+      const user = await this.prisma.user.findUnique({
+        where: { id: data.id },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          password: true, // We need the password for verification
+          isActive: true,
+          createdAt: true,
+          updatedAt: true,
+          profile: true,
+            },
+      });
+
+      if (!user) {
+        throw new NotFoundException(`User with id ${data.id} not found`);
+      }
+console.log(user, 'user', data)
+      // Password verification is handled by the check service
+
+
+      // Remove password from the response
+      const { password, ...userWithoutPassword } = user;
+      
+      // Return the user data without the password
+      return {
+        id: user.id,
+        firstName: user.firstName,
+        password: user.password,
+        lastName: user.lastName,
+        email: user.email,
+        isActive: user.isActive,
+        profile: user.profile,
+          };
+    } catch (error) {
+      this.logger.error(`Error fetching user ${data.id}:`, error);
       throw error;
     }
   }
