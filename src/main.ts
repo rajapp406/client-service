@@ -2,9 +2,9 @@ import { INestApplication, Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { MicroserviceOptions, Transport } from '@nestjs/microservices';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { join } from 'path';
 import { AppModule } from './app.module';
 import { PrismaService } from './prisma/prisma.service';
+import { clientProto } from './utils/protos';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
@@ -60,10 +60,7 @@ async function bootstrap() {
         options: {
           url: '0.0.0.0:50522',
           package: 'client',
-          protoPath: join(
-            __dirname,
-            '../../common-modules/protocol/client.proto',
-          ),
+          protoPath: clientProto,
         },
       },
     );

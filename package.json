@@ -29,6 +29,7 @@
     "@nestjs/platform-express": "^11.0.0",
     "@nestjs/swagger": "^11.2.0",
     "@prisma/client": "^6.11.1",
+    "@rajapp406/proto-definitions": "github:rajapp406/proto-definitions",
     "@types/bcrypt": "^5.0.2",
     "bcrypt": "^6.0.0",
     "class-transformer": "^0.5.1",

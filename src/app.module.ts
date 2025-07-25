@@ -4,6 +4,7 @@ import { join } from 'path';
 import { ClientModule } from './client/client.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { HttpModule } from '@nestjs/axios';
+import { clientProto, PROTO_DIR } from './utils/protos';
 
 @Module({
   imports: [
@@ -20,7 +21,7 @@ import { HttpModule } from '@nestjs/axios';
         transport: Transport.GRPC,
         options: {
           package: 'client',
-          protoPath: join(__dirname, '../../common-modules/protocol/client.proto'),
+          protoPath: clientProto,
           url: '0.0.0.0:50522',
           loader: {
             keepCase: true,
@@ -28,7 +29,7 @@ import { HttpModule } from '@nestjs/axios';
             enums: String,
             defaults: true,
             oneofs: true,
-            includeDirs: [join(__dirname, '../../common-modules/protocol')],
+            includeDirs: [PROTO_DIR],
           },
         },
       },
