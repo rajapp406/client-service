@@ -1,10 +1,13 @@
 import { Module } from '@nestjs/common';
 import { ClientsModule, Transport } from '@nestjs/microservices';
-import { join } from 'path';
-import { ClientModule } from './client/client.module';
+import { LearnModule } from './modules/learn/learn.module';
+import { QuizModule } from './modules/quiz/quiz.module';
+import { SubjectModule } from './modules/subject/subject.module';
+import { ChapterModule } from './modules/chapter/chapter.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { HttpModule } from '@nestjs/axios';
 import { clientProto, PROTO_DIR } from './utils/protos';
+import { QuestionModule } from './modules/question/question.module';
 
 @Module({
   imports: [
@@ -12,8 +15,11 @@ import { clientProto, PROTO_DIR } from './utils/protos';
     PrismaModule.forRoot({ isGlobal: true }),
     
     // Feature modules
-    ClientModule,
-    
+    LearnModule,
+    QuizModule,
+    SubjectModule,
+    ChapterModule,
+    QuestionModule,
     // gRPC client configuration
     ClientsModule.register([
       {
@@ -38,6 +44,6 @@ import { clientProto, PROTO_DIR } from './utils/protos';
     // HTTP client module
     HttpModule,
   ],
-  exports: [ClientModule],
+  exports: [LearnModule],
 })
 export class AppModule {}

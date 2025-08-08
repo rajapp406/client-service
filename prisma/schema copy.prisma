@@ -1,0 +1,270 @@
+// Scalable MVP Learning App - Prisma Schema
+// Phase 1: Core MVP with clear evolution path
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Core enums - minimal but extensible
+enum QuestionType {
+  MCQ
+  TRUE_FALSE
+  SHORT_ANSWER
+  // Future: MATCH_FOLLOWING, FILL_BLANK, DRAG_DROP
+}
+
+enum ContentStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+// Future-ready: Add more syllabus types easily
+enum SyllabusType {
+  CBSE
+  ICSE
+  STATE_BOARD
+}
+
+// Student profile - minimal MVP data
+model Student {
+  id              String     @id @default(uuid()) @db.Uuid
+  userId          String     @unique @map("user_id") @db.Uuid // External auth service
+  grade           Int        @db.Integer
+  syllabusType    SyllabusType @default(CBSE) @map("syllabus_type")
+  
+  // Extensibility hooks for future phases
+  metadata        Json?      @db.JsonB // Future: learning preferences, settings
+  
+  // Timestamps
+  createdAt       DateTime   @default(now()) @map("created_at")
+  updatedAt       DateTime   @updatedAt @map("updated_at")
+
+  // Relations
+  attempts        Attempt[]
+
+  @@index([grade, syllabusType])
+  @@map("students")
+}
+
+// Subject taxonomy - foundation for content organization
+model Subject {
+  id              String     @id @default(uuid()) @db.Uuid
+  name            String     @db.VarChar(100)
+  code            String     @unique @db.VarChar(20) // MATH, SCI, ENG
+  grade           Int        @db.Integer
+  syllabusType    SyllabusType @default(CBSE) @map("syllabus_type")
+  
+  // Hierarchy support for future phases
+  parentId        String?    @map("parent_id") @db.Uuid // For chapter/topic hierarchy
+  orderIndex      Int        @default(0) @map("order_index") // Sequence within parent
+  
+  // Metadata for future features
+  metadata        Json?      @db.JsonB // Future: icons, descriptions, learning objectives
+  
+  // Status and lifecycle
+  status          ContentStatus @default(PUBLISHED)
+  createdAt       DateTime   @default(now()) @map("created_at")
+  updatedAt       DateTime   @updatedAt @map("updated_at")
+
+  // Relations
+  parent          Subject?   @relation("SubjectHierarchy", fields: [parentId], references: [id])
+  children        Subject[]  @relation("SubjectHierarchy")
+  quizzes         Quiz[]
+
+  @@index([grade, syllabusType, status])
+  @@index([parentId, orderIndex])
+  @@map("subjects")
+}
+
+// Quiz - core content unit
+model Quiz {
+  id              String     @id @default(uuid()) @db.Uuid
+  title           String     @db.VarChar(200)
+  subjectId       String     @map("subject_id") @db.Uuid
+  
+  // Core quiz properties
+  totalQuestions  Int        @map("total_questions")
+  totalMarks      Int        @map("total_marks")
+  timeLimitMinutes Int?      @map("time_limit_minutes")
+  
+  // Content management
+  status          ContentStatus @default(DRAFT)
+  version         Int        @default(1) // Content versioning for future
+  
+  // Business model hooks
+  isPremium       Boolean    @default(false) @map("is_premium")
+  
+  // Extensibility for future phases
+  metadata        Json?      @db.JsonB // Future: difficulty, tags, learning objectives
+  
+  // Timestamps
+  createdAt       DateTime   @default(now()) @map("created_at")
+  updatedAt       DateTime   @updatedAt @map("updated_at")
+
+  // Relations
+  subject         Subject    @relation(fields: [subjectId], references: [id])
+  questions       Question[]
+  attempts        Attempt[]
+
+  @@index([subjectId, status])
+  @@index([isPremium])
+  @@map("quizzes")
+}
+
+// Question - flexible design for multiple types
+model Question {
+  id              String     @id @default(uuid()) @db.Uuid
+  quizId          String     @map("quiz_id") @db.Uuid
+  questionType    QuestionType @map("question_type")
+  
+  // Core question content
+  questionText    String     @map("question_text") @db.Text
+  correctAnswer   String     @map("correct_answer") @db.Text
+  marks           Int        @default(1)
+  orderIndex      Int        @map("order_index") // Question sequence
+  
+  // Flexible content storage for different question types
+  // MVP: Store MCQ options as JSON, expand to dedicated tables in Phase 2
+  content         Json       @db.JsonB // MCQ options, explanations, hints, etc.
+  
+  // Content versioning
+  version         Int        @default(1)
+  status          ContentStatus @default(PUBLISHED)
+  
+  // Timestamps
+  createdAt       DateTime   @default(now()) @map("created_at")
+  updatedAt       DateTime   @updatedAt @map("updated_at")
+
+  // Relations
+  quiz            Quiz       @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  responses       Response[]
+
+  @@index([quizId, orderIndex])
+  @@map("questions")
+}
+
+// Attempt - quiz session
+model Attempt {
+  id              String     @id @default(uuid()) @db.Uuid
+  studentId       String     @map("student_id") @db.Uuid
+  quizId          String     @map("quiz_id") @db.Uuid
+  
+  // Attempt results
+  score           Int        // Marks obtained
+  totalMarks      Int        @map("total_marks")
+  
+  // Session tracking
+  startedAt       DateTime   @map("started_at")
+  completedAt     DateTime?  @map("completed_at")
+  timeTakenSeconds Int?      @map("time_taken_seconds")
+  
+  // Attempt metadata
+  attemptNumber   Int        @default(1) @map("attempt_number") // Multiple attempts support
+  isCompleted     Boolean    @default(false) @map("is_completed")
+  
+  // Future phases: device info, session data
+  sessionData     Json?      @map("session_data") @db.JsonB
+  
+  // Timestamps
+  createdAt       DateTime   @default(now()) @map("created_at")
+
+  // Relations
+  student         Student    @relation(fields: [studentId], references: [userId])
+  quiz            Quiz       @relation(fields: [quizId], references: [id])
+  responses       Response[]
+
+  @@index([studentId, completedAt])
+  @@index([quizId])
+  @@index([studentId, quizId]) // Student's attempts for specific quiz
+  @@map("attempts")
+}
+
+// Response - individual question answer
+model Response {
+  id              String     @id @default(uuid()) @db.Uuid
+  attemptId       String     @map("attempt_id") @db.Uuid
+  questionId      String     @map("question_id") @db.Uuid
+  
+  // Student's answer - flexible format
+  studentAnswer   String?    @map("student_answer") @db.Text
+  isCorrect       Boolean    @map("is_correct")
+  marksEarned     Int        @map("marks_earned")
+  
+  // Timing data for analytics
+  timeTakenSeconds Int?      @map("time_taken_seconds")
+  
+  // Future: interaction data, partial answers
+  interactionData Json?      @map("interaction_data") @db.JsonB
+  
+  // Timestamps
+  createdAt       DateTime   @default(now()) @map("created_at")
+
+  // Relations
+  attempt         Attempt    @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question        Question   @relation(fields: [questionId], references: [id])
+
+  @@unique([attemptId, questionId]) // One response per question per attempt
+  @@index([questionId]) // Analytics on question performance
+  @@map("responses")
+}
+
+// Event Log - Foundation for analytics and audit trail
+// Critical for Phase 2 and beyond
+model EventLog {
+  id              String     @id @default(uuid()) @db.Uuid
+  
+  // Event identification
+  eventType       String     @map("event_type") @db.VarChar(50) // quiz_started, question_answered, etc.
+  entityType      String     @map("entity_type") @db.VarChar(50) // quiz, question, student
+  entityId        String     @map("entity_id") @db.Uuid
+  
+  // User context
+  userId          String?    @map("user_id") @db.Uuid // External user ID
+  sessionId       String?    @map("session_id") @db.Uuid
+  
+  // Event data
+  eventData       Json       @map("event_data") @db.JsonB
+  
+  // Metadata
+  ipAddress       String?    @map("ip_address") @db.VarChar(45)
+  userAgent       String?    @map("user_agent") @db.Text
+  
+  // Timestamp
+  createdAt       DateTime   @default(now()) @map("created_at")
+
+  @@index([eventType, createdAt])
+  @@index([userId, createdAt])
+  @@index([entityType, entityId])
+  @@map("event_logs")
+}
+
+// Content Metadata - Extensible content properties
+// Prepares for AI content generation, analytics, recommendations
+model ContentMetadata {
+  id              String     @id @default(uuid()) @db.Uuid
+  contentType     String     @map("content_type") @db.VarChar(50) // quiz, question
+  contentId       String     @map("content_id") @db.Uuid
+  
+  // Metadata key-value pairs
+  metadataKey     String     @map("metadata_key") @db.VarChar(100)
+  metadataValue   String     @map("metadata_value") @db.Text
+  
+  // Data type for proper handling
+  valueType       String     @map("value_type") @db.VarChar(20) // string, number, boolean, json
+  
+  // Timestamps
+  createdAt       DateTime   @default(now()) @map("created_at")
+  updatedAt       DateTime   @updatedAt @map("updated_at")
+
+  @@unique([contentType, contentId, metadataKey])
+  @@index([contentType, contentId])
+  @@index([metadataKey])
+  @@map("content_metadata")
+}

@@ -1,0 +1,379 @@
+// MVP Learning App - Enhanced Quiz & Worksheet Schema
+// Focus on Quizzes & Worksheets with Gamification
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum SyllabusType {
+  CBSE
+  ICSE
+  STATE_BOARD
+  IB
+  CAMBRIDGE
+}
+
+enum ContentType {
+  QUIZ
+  WORKSHEET
+}
+
+enum QuizType {
+  CHAPTER_WISE    // Single chapter quiz
+  SUBJECT_WISE    // Multiple chapters from same subject
+  MIXED           // Cross-subject questions
+  EXAM_SHEET      // Formal exam format
+  TIME_CHALLENGE  // Gamified time-based quiz
+}
+
+enum QuestionType {
+  MCQ                 // Multiple Choice Questions
+  TRUE_FALSE         // True/False questions
+  SHORT_ANSWER       // Short text answers
+  MATCH_FOLLOWING    // Match items from two lists
+  FILL_BLANK        // Fill in the blanks
+}
+
+enum DifficultyLevel {
+  BASIC
+  INTERMEDIATE
+  ADVANCED
+}
+
+enum BadgeType {
+  STREAK_MASTER      // Completed daily streaks
+  QUIZ_CHAMPION      // High quiz scores
+  SPEED_DEMON        // Fast completion times
+  SUBJECT_EXPERT     // Mastery in specific subject
+  PERFECT_SCORE      // 100% scores
+  DAILY_LEARNER      // Daily activity
+  CHAPTER_MASTER     // Completed all chapter quizzes
+  TIME_CHALLENGER    // Time challenge completions
+}
+
+// Student profiles with skill tracking
+model StudentProfile {
+  id                  String          @id @default(uuid()) @db.Uuid
+  userId              String          @unique @map("user_id") @db.Uuid // External user ID
+  grade               Int             @db.Integer
+  syllabusType        SyllabusType    @default(CBSE) @map("syllabus_type")
+  isPremium           Boolean         @default(false) @map("is_premium")
+  currentStreak       Int             @default(0) @map("current_streak") @db.Integer
+  longestStreak       Int             @default(0) @map("longest_streak") @db.Integer
+  totalPoints         Int             @default(0) @map("total_points") @db.Integer
+  level               Int             @default(1) @db.Integer // Gamification level
+  lastActivityAt      DateTime?       @map("last_activity_at") @db.Timestamptz(6)
+  createdAt           DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  quizAttempts        QuizAttempt[]
+  worksheetAttempts   WorksheetAttempt[]
+  badges              StudentBadge[]
+  skillLevels         StudentSkillLevel[]
+
+  @@index([grade])
+  @@index([userId])
+  @@map("student_profiles")
+}
+
+// Subjects table
+model Subject {
+  id          String    @id @default(uuid()) @db.Uuid
+  name        String    @db.VarChar(100)
+  code        String    @unique @db.VarChar(20) // MATH, SCI, ENG, etc.
+  iconUrl     String?   @map("icon_url") @db.VarChar(500)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  // Relations
+  chapters           Chapter[]
+  studentSkillLevels StudentSkillLevel[]
+
+  @@map("subjects")
+}
+
+// Chapters within subjects
+model Chapter {
+  id                String       @id @default(uuid()) @db.Uuid
+  subjectId         String       @map("subject_id") @db.Uuid
+  title             String       @db.VarChar(200)
+  chapterNumber     Int          @map("chapter_number") @db.Integer
+  grade             Int          @db.Integer
+  syllabusType      SyllabusType @default(CBSE) @map("syllabus_type")
+  createdAt         DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  // Relations
+  subject           Subject      @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  quizChapters      QuizChapter[]
+  worksheetChapters WorksheetChapter[]
+
+  @@map("chapters")
+}
+
+// Main Quiz table - supports all quiz types including time challenges
+model Quiz {
+  id                String         @id @default(uuid()) @db.Uuid
+  title             String         @db.VarChar(200)
+  description       String?        @db.Text
+  quizType          QuizType       @map("quiz_type")
+  grade             Int            @db.Integer
+  syllabusType      SyllabusType   @default(CBSE) @map("syllabus_type")
+  difficultyLevel   DifficultyLevel @default(INTERMEDIATE) @map("difficulty_level")
+  totalQuestions    Int            @map("total_questions") @db.Integer
+  totalMarks        Int            @map("total_marks") @db.Integer
+  timeLimitMinutes  Int?           @map("time_limit_minutes") @db.Integer
+  isPremium         Boolean        @default(false) @map("is_premium")
+  isActive          Boolean        @default(true) @map("is_active")
+  aiGenerated       Boolean        @default(false) @map("ai_generated")
+  pointsReward      Int            @default(10) @map("points_reward") @db.Integer // Gamification points
+  bonusTimePoints   Int?           @map("bonus_time_points") @db.Integer // Extra points for speed
+  createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  questions         QuizQuestion[]
+  quizChapters      QuizChapter[]
+  quizAttempts      QuizAttempt[]
+
+  @@index([quizType, grade, difficultyLevel])
+  @@index([grade, syllabusType])
+  @@map("quizzes")
+}
+
+// Worksheets - practice exercises with detailed solutions
+model Worksheet {
+  id                String         @id @default(uuid()) @db.Uuid
+  title             String         @db.VarChar(200)
+  description       String?        @db.Text
+  grade             Int            @db.Integer
+  syllabusType      SyllabusType   @default(CBSE) @map("syllabus_type")
+  difficultyLevel   DifficultyLevel @default(INTERMEDIATE) @map("difficulty_level")
+  totalQuestions    Int            @map("total_questions") @db.Integer
+  estimatedMinutes  Int            @map("estimated_minutes") @db.Integer
+  isPremium         Boolean        @default(false) @map("is_premium")
+  isActive          Boolean        @default(true) @map("is_active")
+  aiGenerated       Boolean        @default(false) @map("ai_generated")
+  pointsReward      Int            @default(5) @map("points_reward") @db.Integer
+  createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  questions         WorksheetQuestion[]
+  worksheetChapters WorksheetChapter[]
+  worksheetAttempts WorksheetAttempt[]
+
+  @@index([grade, difficultyLevel])
+  @@index([grade, syllabusType])
+  @@map("worksheets")
+}
+
+// Many-to-many: Quiz and Chapter
+model QuizChapter {
+  id        String  @id @default(uuid()) @db.Uuid
+  quizId    String  @map("quiz_id") @db.Uuid
+  chapterId String  @map("chapter_id") @db.Uuid
+
+  quiz      Quiz    @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  chapter   Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+
+  @@unique([quizId, chapterId])
+  @@map("quiz_chapters")
+}
+
+// Many-to-many: Worksheet and Chapter
+model WorksheetChapter {
+  id          String    @id @default(uuid()) @db.Uuid
+  worksheetId String    @map("worksheet_id") @db.Uuid
+  chapterId   String    @map("chapter_id") @db.Uuid
+
+  worksheet   Worksheet @relation(fields: [worksheetId], references: [id], onDelete: Cascade)
+  chapter     Chapter   @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+
+  @@unique([worksheetId, chapterId])
+  @@map("worksheet_chapters")
+}
+
+// Quiz questions with enhanced question types
+model QuizQuestion {
+  id             String         @id @default(uuid()) @db.Uuid
+  quizId         String         @map("quiz_id") @db.Uuid
+  questionText   String         @map("question_text") @db.Text
+  questionType   QuestionType   @default(MCQ) @map("question_type")
+  options        Json?          @db.JsonB // MCQ: ["A", "B", "C", "D"], Match: {"left": [], "right": []}
+  correctAnswer  Json           @map("correct_answer") @db.JsonB // Flexible format for different question types
+  explanation    String?        @db.Text
+  marks          Int            @default(1) @db.Integer
+  sequenceOrder  Int            @map("sequence_order") @db.Integer
+  difficultyLevel DifficultyLevel @default(INTERMEDIATE) @map("difficulty_level")
+  timeEstimate   Int?           @map("time_estimate") @db.Integer // Seconds per question
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  // Relations
+  quiz           Quiz           @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  responses      QuizResponse[]
+
+  @@map("quiz_questions")
+}
+
+// Worksheet questions - similar structure but with detailed solutions
+model WorksheetQuestion {
+  id             String         @id @default(uuid()) @db.Uuid
+  worksheetId    String         @map("worksheet_id") @db.Uuid
+  questionText   String         @map("question_text") @db.Text
+  questionType   QuestionType   @default(SHORT_ANSWER) @map("question_type")
+  options        Json?          @db.JsonB
+  correctAnswer  Json           @map("correct_answer") @db.JsonB
+  solution       String         @map("solution") @db.Text // Detailed step-by-step solution
+  hints          String[]       @db.Text // Progressive hints
+  marks          Int            @default(1) @db.Integer
+  sequenceOrder  Int            @map("sequence_order") @db.Integer
+  difficultyLevel DifficultyLevel @default(INTERMEDIATE) @map("difficulty_level")
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  // Relations
+  worksheet      Worksheet      @relation(fields: [worksheetId], references: [id], onDelete: Cascade)
+  responses      WorksheetResponse[]
+
+  @@map("worksheet_questions")
+}
+
+// Quiz attempts with gamification tracking
+model QuizAttempt {
+  id               String        @id @default(uuid()) @db.Uuid
+  studentId        String        @map("student_id") @db.Uuid
+  quizId           String        @map("quiz_id") @db.Uuid
+  score            Int           @db.Integer
+  totalMarks       Int           @map("total_marks") @db.Integer
+  percentage       Decimal       @db.Decimal(5, 2)
+  pointsEarned     Int           @default(0) @map("points_earned") @db.Integer
+  timeTakenMinutes Int?          @map("time_taken_minutes") @db.Integer
+  speedBonus       Int           @default(0) @map("speed_bonus") @db.Integer // Extra points for fast completion
+  perfectScore     Boolean       @default(false) @map("perfect_score") // 100% achievement
+  startedAt        DateTime      @map("started_at") @db.Timestamptz(6)
+  completedAt      DateTime?     @map("completed_at") @db.Timestamptz(6)
+  isCompleted      Boolean       @default(false) @map("is_completed")
+  attemptNumber    Int           @default(1) @map("attempt_number") @db.Integer
+  createdAt        DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  // Relations
+  student          StudentProfile @relation(fields: [studentId], references: [userId], onDelete: Cascade)
+  quiz             Quiz          @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  responses        QuizResponse[]
+
+  @@index([studentId])
+  @@index([quizId])
+  @@index([studentId, isCompleted])
+  @@map("quiz_attempts")
+}
+
+// Worksheet attempts
+model WorksheetAttempt {
+  id               String        @id @default(uuid()) @db.Uuid
+  studentId        String        @map("student_id") @db.Uuid
+  worksheetId      String        @map("worksheet_id") @db.Uuid
+  score            Int           @db.Integer
+  totalMarks       Int           @map("total_marks") @db.Integer
+  percentage       Decimal       @db.Decimal(5, 2)
+  pointsEarned     Int           @default(0) @map("points_earned") @db.Integer
+  hintsUsed        Int           @default(0) @map("hints_used") @db.Integer
+  timeTakenMinutes Int?          @map("time_taken_minutes") @db.Integer
+  startedAt        DateTime      @map("started_at") @db.Timestamptz(6)
+  completedAt      DateTime?     @map("completed_at") @db.Timestamptz(6)
+  isCompleted      Boolean       @default(false) @map("is_completed")
+  createdAt        DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  // Relations
+  student          StudentProfile    @relation(fields: [studentId], references: [userId], onDelete: Cascade)
+  worksheet        Worksheet         @relation(fields: [worksheetId], references: [id], onDelete: Cascade)
+  responses        WorksheetResponse[]
+
+  @@index([studentId])
+  @@index([worksheetId])
+  @@index([studentId, isCompleted])
+  @@map("worksheet_attempts")
+}
+
+// Quiz responses with enhanced answer formats
+model QuizResponse {
+  id              String       @id @default(uuid()) @db.Uuid
+  attemptId       String       @map("attempt_id") @db.Uuid
+  questionId      String       @map("question_id") @db.Uuid
+  studentAnswer   Json?        @map("student_answer") @db.JsonB // Flexible format for different question types
+  isCorrect       Boolean      @map("is_correct")
+  marksEarned     Int          @default(0) @map("marks_earned") @db.Integer
+  timeTakenSeconds Int?        @map("time_taken_seconds") @db.Integer
+  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  // Relations
+  attempt         QuizAttempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question        QuizQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@map("quiz_responses")
+}
+
+// Worksheet responses
+model WorksheetResponse {
+  id              String            @id @default(uuid()) @db.Uuid
+  attemptId       String            @map("attempt_id") @db.Uuid
+  questionId      String            @map("question_id") @db.Uuid
+  studentAnswer   Json?             @map("student_answer") @db.JsonB
+  isCorrect       Boolean           @map("is_correct")
+  marksEarned     Int               @default(0) @map("marks_earned") @db.Integer
+  hintsUsed       Int               @default(0) @map("hints_used") @db.Integer
+  solutionViewed  Boolean           @default(false) @map("solution_viewed")
+  createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  // Relations
+  attempt         WorksheetAttempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question        WorksheetQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@map("worksheet_responses")
+}
+
+// Gamification: Student badges
+model StudentBadge {
+  id          String       @id @default(uuid()) @db.Uuid
+  studentId   String       @map("student_id") @db.Uuid
+  badgeType   BadgeType    @map("badge_type")
+  title       String       @db.VarChar(100)
+  description String       @db.Text
+  iconUrl     String?      @map("icon_url") @db.VarChar(500)
+  earnedAt    DateTime     @map("earned_at") @db.Timestamptz(6)
+  
+  // Relations
+  student     StudentProfile @relation(fields: [studentId], references: [userId], onDelete: Cascade)
+
+  @@unique([studentId, badgeType])
+  @@index([studentId])
+  @@map("student_badges")
+}
+
+// AI-based skill level tracking per subject
+model StudentSkillLevel {
+  id                String       @id @default(uuid()) @db.Uuid
+  studentId         String       @map("student_id") @db.Uuid
+  subjectId         String       @map("subject_id") @db.Uuid
+  currentLevel      DifficultyLevel @default(BASIC) @map("current_level")
+  masteryPercentage Decimal      @default(0) @map("mastery_percentage") @db.Decimal(5, 2)
+  recommendedLevel  DifficultyLevel @default(BASIC) @map("recommended_level") // AI recommendation
+  lastAssessedAt    DateTime?    @map("last_assessed_at") @db.Timestamptz(6)
+  createdAt         DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  student           StudentProfile @relation(fields: [studentId], references: [userId], onDelete: Cascade)
+  subject           Subject      @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, subjectId])
+  @@index([studentId])
+  @@index([subjectId])
+  @@map("student_skill_levels")
+}
+
+// Note: Indexes are defined using @@index directive within each model above
+// Prisma will automatically create the necessary database indexes

@@ -1,0 +1,145 @@
+generator client {
+  provider = "prisma-client-js"
+  output         = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  // Enable pgcrypto extension for gen_random_uuid()
+  extensions = [pgcrypto, pg_trgm]
+}
+
+model Student {
+  id           String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId       String        @unique
+  grade        Int
+  syllabusType SyllabusType
+  createdAt    DateTime      @default(now())
+  quizAttempts QuizAttempt[]
+  @@index([grade, syllabusType])
+}
+
+model Subject {
+  id        Int             @id @default(autoincrement())
+  name      String
+  grade     Int
+  board     String
+  chapters  Chapter[]
+  quizzes   Quiz[]
+  questions QuizQuestion[]
+
+  @@index([grade, board])
+}
+
+model Chapter {
+  id             Int           @id @default(autoincrement())
+  subject        Subject       @relation(fields: [subjectId], references: [id])
+  subjectId      Int
+  title          String
+  chapterNumber  Int?
+  content        String?
+  youtubeUrl     String?
+  createdAt      DateTime      @default(now())
+  questions      QuizQuestion[]
+
+  @@index([subjectId])
+}
+
+model QuizQuestion {
+  id            String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  chapter       Chapter?     @relation(fields: [chapterId], references: [id])
+  chapterId     Int?
+  subject       Subject      @relation(fields: [subjectId], references: [id])
+  subjectId     Int
+  grade         Int
+  board         String
+  questionType  QuestionType
+  questionText  String
+  options       Json
+  correctAnswer String
+  explanation   String?
+  difficulty    Difficulty    @default(medium)
+  createdAt     DateTime      @default(now())
+  quizAnswers   QuizAnswer[]
+
+  @@index([chapterId])
+  @@index([subjectId])
+  @@index([grade, board])
+}
+
+model Quiz {
+  id          String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title       String
+  type        QuizType
+  grade       Int
+  subject     Subject?     @relation(fields: [subjectId], references: [id])
+  subjectId   Int?
+  timeLimit   Int?
+  questionIds String[]
+  createdById String
+  createdAt   DateTime     @default(now())
+  attempts    QuizAttempt[]
+
+  @@index([type, grade])
+  @@index([subjectId])
+}
+
+model QuizAttempt {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  quiz           Quiz         @relation(fields: [quizId], references: [id])
+  quizId         String
+  student        Student      @relation(fields: [studentId], references: [id])
+  studentId      String
+  startedAt      DateTime     @default(now())
+  completedAt    DateTime?
+  score          Int?
+  totalQuestions Int?
+  correctAnswers Int?
+  answers        QuizAnswer[]
+
+  @@index([quizId])
+  @@index([studentId])
+  @@index([startedAt])
+}
+
+model QuizAnswer {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  quizAttempt    QuizAttempt  @relation(fields: [quizAttemptId], references: [id])
+  quizAttemptId  String
+  question       QuizQuestion @relation(fields: [questionId], references: [id])
+  questionId     String
+  selectedOption String?
+  isCorrect      Boolean?
+  answeredAt     DateTime     @default(now())
+
+  @@index([quizAttemptId])
+  @@index([questionId])
+}
+
+enum QuizType {
+  chapter
+  subject
+  mixed
+  exam_sheet
+}
+
+enum QuestionType {
+  mcq
+  true_false
+  fill_blank
+}
+
+enum Difficulty {
+  easy
+  medium
+  hard
+}
+
+enum SyllabusType {
+  CBSE
+  ICSE
+  IB
+  STATE
+  CAMBRIDGE
+}

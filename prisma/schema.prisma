@@ -1,39 +1,247 @@
 generator client {
   provider = "prisma-client-js"
-  output   = "../generated/prisma"
+  output         = "../generated/prisma"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  // Enable pgcrypto extension for gen_random_uuid()
+  extensions = [pgcrypto, pg_trgm]
 }
 
-model User {
-  id        String       @id @default(uuid())
-  email     String       @unique
-  isActive  Boolean      @default(true)
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
-  password  String       @db.VarChar(255)
-  firstName String       @map("first_name")
-  lastName  String       @map("last_name")
-  profile   UserProfile?
-
-  @@map("users")
+model Student {
+  id           String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId       String        @unique // External user ID from user service
+  grade        Int
+  board        Board
+  createdAt    DateTime      @default(now())
+  quizAttempts QuizAttempt[]
+  
+  @@index([userId])
+  @@index([grade, board])
 }
 
-model UserProfile {
-  id                String   @id @default(uuid())
-  userId            String   @unique
-  age               Int
-  gender            String
-  fitnessLevel      String   @map("fitness_level")
-  goals             String[]
-  workoutFrequency  String   @map("workout_frequency")
-  preferredWorkouts String[] @map("preferred_workouts")
-  createdAt         DateTime @default(now()) @map("created_at")
-  updatedAt         DateTime @updatedAt @map("updated_at")
-  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+model Subject {
+  id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name          String
+  grade         Int
+  board         Board
+  iconUrl       String?
+  chapters      Chapter[]
+  questions     QuizQuestion[]
+  
+  // Relations for primary subject in quizzes
+  primaryQuizzes Quiz[]
 
-  @@map("user_profiles")
+  @@unique([name, grade, board])
+  @@index([grade, board])
+}
+
+model Chapter {
+  id             String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  subject        Subject       @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  subjectId      String        @db.Uuid
+  title          String
+  chapterNumber  Int?
+  content        String?
+  youtubeUrl     String?
+  createdAt      DateTime      @default(now())
+  questions      QuizQuestion[]
+
+  @@index([subjectId])
+  @@index([subjectId, chapterNumber])
+}
+
+model QuizQuestion {
+  id            String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  chapter       Chapter?     @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+  chapterId     String?      @db.Uuid
+  subject       Subject      @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  subjectId     String       @db.Uuid
+  grade         Int
+  board         Board
+  questionType  QuestionType
+  questionText  String
+  options       Json // Array of { text: string, isCorrect: boolean, explanation?: string }
+  explanation   String?
+  difficulty    Difficulty    @default(MEDIUM)
+  createdAt     DateTime      @default(now())
+  
+  // Relations
+  quizAnswers   QuizAnswer[]
+  quizzes       QuizToQuestion[]
+
+  @@index([chapterId])
+  @@index([subjectId])
+  @@index([grade, board])
+  @@index([difficulty])
+  // Fulltext search not supported with PostgreSQL connector
+  // @@fulltext([questionText])
+}
+
+model Quiz {
+  id          String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title       String
+  description String?
+  type        QuizType     @default(USER_CREATED)
+  timeLimit   Int?         // in minutes
+  
+  // Creator info - external user ID from user service
+  createdById String       // External user ID
+  createdByRole UserRole   @default(ADMIN) // Cache role for performance
+  isPublic    Boolean      @default(false)
+  
+  // Derived/computed metadata (nullable for mixed content)
+  primaryGrade    Int?
+  primaryBoard    Board?
+  primarySubject  Subject? @relation(fields: [primarySubjectId], references: [id], onDelete: SetNull)
+  primarySubjectId String? @db.Uuid
+  
+  // Mixed content indicators - computed when questions are added/removed
+  hasMultipleGrades   Boolean @default(false)
+  hasMultipleBoards   Boolean @default(false)
+  hasMultipleSubjects Boolean @default(false)
+  
+  // Metadata
+  questionCount   Int      @default(0)
+  averageDifficulty String? // EASY, MEDIUM, HARD based on questions
+  estimatedTime   Int?     // in minutes, derived from question count and difficulty
+  
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  
+  // Relations
+  attempts    QuizAttempt[]
+  questions   QuizToQuestion[]
+  tags        QuizTag[]
+
+  @@index([type])
+  @@index([createdById])
+  @@index([createdByRole])
+  @@index([isPublic])
+  @@index([primaryGrade, primaryBoard])
+  @@index([primarySubjectId])
+  @@index([createdAt])
+  // Fulltext search not supported with PostgreSQL connector
+  // @@fulltext([title, description])
+}
+
+model QuizToQuestion {
+  quizId     String   @db.Uuid
+  questionId String   @db.Uuid
+  order      Int      // Order of question in quiz
+  points     Int      @default(1) // Points for this question in this quiz
+  
+  quiz       Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  question   QuizQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@id([quizId, questionId])
+  @@index([questionId])
+  @@index([quizId, order])
+}
+
+model QuizTag {
+  id     String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  quizId String @db.Uuid
+  tag    String @db.VarChar(50)
+  
+  quiz   Quiz   @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  
+  @@unique([quizId, tag])
+  @@index([tag])
+}
+
+model QuizAttempt {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  quiz           Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  quizId         String       @db.Uuid
+  student        Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  studentId      String       @db.Uuid
+  
+  // Attempt metadata
+  startedAt      DateTime     @default(now())
+  completedAt    DateTime?
+  timeSpent      Int?         // in seconds
+  
+  // Scoring
+  score          Float?       // percentage score (0-100)
+  totalQuestions Int?
+  correctAnswers Int?
+  totalPoints    Int?         // sum of points from correct answers
+  maxPoints      Int?         // maximum possible points
+  
+  // Status
+  status         AttemptStatus @default(IN_PROGRESS)
+  
+  answers        QuizAnswer[]
+
+  @@index([quizId])
+  @@index([studentId])
+  @@index([startedAt])
+  @@index([status])
+  @@index([studentId, completedAt])
+}
+
+model QuizAnswer {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  quizAttempt    QuizAttempt  @relation(fields: [quizAttemptId], references: [id], onDelete: Cascade)
+  quizAttemptId  String       @db.Uuid
+  question       QuizQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  questionId     String       @db.Uuid
+  
+  selectedOption String?      // For MCQ and TRUE_FALSE
+  textAnswer     String?      // For FILL_BLANK
+  isCorrect      Boolean?
+  pointsEarned   Int          @default(0)
+  timeSpent      Int?         // in seconds
+  answeredAt     DateTime     @default(now())
+
+  @@index([quizAttemptId])
+  @@index([questionId])
+  @@index([isCorrect])
+}
+
+// Enums
+enum UserRole {
+  STUDENT
+  TEACHER
+  ADMIN
+}
+
+enum QuizType {
+  SYSTEM          // Created by admins/system
+  USER_CREATED    // Created by teachers/students
+  CHAPTER         // Legacy - chapter-based quiz
+  SUBJECT         // Legacy - subject-based quiz
+  MIXED           // Legacy - mixed content quiz
+  EXAM_SHEET      // Legacy - exam format
+}
+
+enum QuestionType {
+  MCQ
+  TRUE_FALSE
+  FILL_BLANK
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum Board {
+  CBSE
+  ICSE
+  IB
+  STATE
+  CAMBRIDGE
+}
+
+enum AttemptStatus {
+  IN_PROGRESS
+  COMPLETED
+  ABANDONED
+  PAUSED
 }
