@@ -8,6 +8,11 @@ import { PrismaModule } from './prisma/prisma.module';
 import { HttpModule } from '@nestjs/axios';
 import { clientProto, PROTO_DIR } from './utils/protos';
 import { QuestionModule } from './modules/question/question.module';
+import { SchoolModule } from './modules/school/school.module';
+import { LeaderboardModule } from './modules/leaderboard/leaderboard.module';
+import { QuizAttemptModule } from './modules/quiz-attempt/quiz-attempt.module';
+import { UserProfileModule } from './modules/user-profile/user-profile.module';
+import { LocationModule } from './modules/location/location.module';
 
 @Module({
   imports: [
@@ -20,6 +25,11 @@ import { QuestionModule } from './modules/question/question.module';
     SubjectModule,
     ChapterModule,
     QuestionModule,
+    SchoolModule,
+    LeaderboardModule,
+    QuizAttemptModule,
+    UserProfileModule,
+    LocationModule,
     // gRPC client configuration
     ClientsModule.register([
       {

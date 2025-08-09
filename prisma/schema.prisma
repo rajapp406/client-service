@@ -1,37 +1,143 @@
 generator client {
-  provider = "prisma-client-js"
-  output         = "../generated/prisma"
+  provider        = "prisma-client-js"
+  output          = "../generated/prisma"
   previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
   // Enable pgcrypto extension for gen_random_uuid()
   extensions = [pgcrypto, pg_trgm]
 }
 
-model Student {
-  id           String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId       String        @unique // External user ID from user service
-  grade        Int
-  board        Board
-  createdAt    DateTime      @default(now())
-  quizAttempts QuizAttempt[]
-  
+
+model UserProfile {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String    @unique // External user ID from user service
+  userType    UserType
+  schoolId    String?   @db.Uuid
+  grade       Int?
+  board       Board?
+  dateOfBirth DateTime?
+  phoneNumber String?
+  parentEmail String?
+  parentPhone String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  school         School?        @relation(fields: [schoolId], references: [id], onDelete: SetNull)
+  interests      UserInterest[]
+  SchoolBranch   SchoolBranch?  @relation(fields: [schoolBranchId], references: [id])
+  schoolBranchId String?        @db.Uuid
+  City           City?          @relation(fields: [cityId], references: [id])
+  cityId         String?        @db.Uuid
+  quizAttempts   QuizAttempt[]
+
   @@index([userId])
+  @@index([schoolId])
   @@index([grade, board])
 }
 
+model School {
+  id          String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String         @unique // Brand name only
+  branches    SchoolBranch[]
+  UserProfile UserProfile[]
+  Leaderboard Leaderboard[]
+}
+
+model SchoolBranch {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  schoolId String @db.Uuid
+  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  cityId String @db.Uuid
+  city   City   @relation(fields: [cityId], references: [id], onDelete: Cascade)
+
+  address String?
+  users   UserProfile[]
+
+  @@unique([schoolId, cityId]) // Prevent duplicate branch in same city
+}
+
+model City {
+  id        String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String
+  code      String? @db.VarChar(10) // Optional city short code
+  countryId String  @db.Uuid
+  country   Country @relation(fields: [countryId], references: [id], onDelete: Cascade)
+
+  branches SchoolBranch[]
+  users    UserProfile[]
+  State    State?         @relation(fields: [stateId], references: [id])
+  stateId  String?        @db.Uuid
+  Location Location[]
+
+  @@unique([name, countryId])
+  @@index([countryId])
+}
+
+model Country {
+  id     String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name   String  @unique
+  code   String  @db.VarChar(3) // ISO Alpha-2 or Alpha-3 code
+  cities City[]
+  State  State[]
+}
+
+model Leaderboard {
+  id         String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid // Leaderboard Entry ID
+  school     School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  schoolId   String @db.Uuid // School ID (FK)
+  userId     String @db.Uuid // User ID (external FK)
+  totalScore Int // Total Score
+  rank       Int // Rank
+
+  @@index([schoolId])
+  @@index([userId])
+}
+
+model State {
+  id        String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String
+  country   Country @relation(fields: [countryId], references: [id], onDelete: Cascade)
+  countryId String  @db.Uuid
+  cities    City[]
+
+  @@unique([name, countryId])
+  @@index([countryId])
+}
+
+model Location {
+  id       String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cityId   String        @db.Uuid
+
+  city City @relation(fields: [cityId], references: [id], onDelete: Cascade)
+
+  @@index([cityId])
+}
+
+model UserInterest {
+  id        String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  profileId String @db.Uuid
+  interest  String
+
+  profile UserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+}
+
 model Subject {
-  id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name          String
-  grade         Int
-  board         Board
-  iconUrl       String?
-  chapters      Chapter[]
-  questions     QuizQuestion[]
-  
+  id        String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String
+  grade     Int
+  board     Board
+  iconUrl   String?
+  chapters  Chapter[]
+  questions QuizQuestion[]
+
   // Relations for primary subject in quizzes
   primaryQuizzes Quiz[]
 
@@ -40,82 +146,84 @@ model Subject {
 }
 
 model Chapter {
-  id             String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  subject        Subject       @relation(fields: [subjectId], references: [id], onDelete: Cascade)
-  subjectId      String        @db.Uuid
-  title          String
-  chapterNumber  Int?
-  content        String?
-  youtubeUrl     String?
-  createdAt      DateTime      @default(now())
-  questions      QuizQuestion[]
+  id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  subject       Subject        @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  subjectId     String         @db.Uuid
+  title         String
+  chapterNumber Int?
+  content       String?
+  youtubeUrl    String?
+  createdAt     DateTime       @default(now())
+  questions     QuizQuestion[]
 
   @@index([subjectId])
   @@index([subjectId, chapterNumber])
 }
 
 model QuizQuestion {
-  id            String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  chapter       Chapter?     @relation(fields: [chapterId], references: [id], onDelete: SetNull)
-  chapterId     String?      @db.Uuid
-  subject       Subject      @relation(fields: [subjectId], references: [id], onDelete: Cascade)
-  subjectId     String       @db.Uuid
-  grade         Int
-  board         Board
-  questionType  QuestionType
-  questionText  String
-  options       Json // Array of { text: string, isCorrect: boolean, explanation?: string }
-  explanation   String?
-  difficulty    Difficulty    @default(MEDIUM)
-  createdAt     DateTime      @default(now())
-  
+  id           String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  chapter      Chapter?     @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+  chapterId    String?      @db.Uuid
+  subject      Subject      @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  subjectId    String       @db.Uuid
+  grade        Int
+  board        Board
+  questionType QuestionType
+  questionText String
+  options      Json // Array of { text: string, isCorrect: boolean, explanation?: string }
+  explanation  String?
+  difficulty   Difficulty   @default(MEDIUM)
+  createdAt    DateTime     @default(now())
+
   // Relations
-  quizAnswers   QuizAnswer[]
-  quizzes       QuizToQuestion[]
+  quizAnswers QuizAnswer[]
+  quizzes     QuizToQuestion[]
+  // Fulltext search not supported with PostgreSQL connector
+  // @@fulltext([questionText])
 
   @@index([chapterId])
   @@index([subjectId])
   @@index([grade, board])
   @@index([difficulty])
-  // Fulltext search not supported with PostgreSQL connector
-  // @@fulltext([questionText])
 }
 
 model Quiz {
-  id          String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   title       String
   description String?
-  type        QuizType     @default(USER_CREATED)
-  timeLimit   Int?         // in minutes
-  
+  type        QuizType @default(USER_CREATED)
+  timeLimit   Int? // in minutes
+
   // Creator info - external user ID from user service
-  createdById String       // External user ID
-  createdByRole UserRole   @default(ADMIN) // Cache role for performance
-  isPublic    Boolean      @default(false)
-  
+  createdById   String // External user ID
+  createdByRole UserRole @default(ADMIN) // Cache role for performance
+  isPublic      Boolean  @default(false)
+
   // Derived/computed metadata (nullable for mixed content)
-  primaryGrade    Int?
-  primaryBoard    Board?
-  primarySubject  Subject? @relation(fields: [primarySubjectId], references: [id], onDelete: SetNull)
-  primarySubjectId String? @db.Uuid
-  
+  primaryGrade     Int?
+  primaryBoard     Board?
+  primarySubject   Subject? @relation(fields: [primarySubjectId], references: [id], onDelete: SetNull)
+  primarySubjectId String?  @db.Uuid
+
   // Mixed content indicators - computed when questions are added/removed
   hasMultipleGrades   Boolean @default(false)
   hasMultipleBoards   Boolean @default(false)
   hasMultipleSubjects Boolean @default(false)
-  
+
   // Metadata
-  questionCount   Int      @default(0)
+  questionCount     Int     @default(0)
   averageDifficulty String? // EASY, MEDIUM, HARD based on questions
-  estimatedTime   Int?     // in minutes, derived from question count and difficulty
-  
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  
+  estimatedTime     Int? // in minutes, derived from question count and difficulty
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   // Relations
-  attempts    QuizAttempt[]
-  questions   QuizToQuestion[]
-  tags        QuizTag[]
+  attempts  QuizAttempt[]
+  questions QuizToQuestion[]
+  tags      QuizTag[]
+  // Fulltext search not supported with PostgreSQL connector
+  // @@fulltext([title, description])
 
   @@index([type])
   @@index([createdById])
@@ -124,18 +232,16 @@ model Quiz {
   @@index([primaryGrade, primaryBoard])
   @@index([primarySubjectId])
   @@index([createdAt])
-  // Fulltext search not supported with PostgreSQL connector
-  // @@fulltext([title, description])
 }
 
 model QuizToQuestion {
-  quizId     String   @db.Uuid
-  questionId String   @db.Uuid
-  order      Int      // Order of question in quiz
-  points     Int      @default(1) // Points for this question in this quiz
-  
-  quiz       Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
-  question   QuizQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  quizId     String @db.Uuid
+  questionId String @db.Uuid
+  order      Int // Order of question in quiz
+  points     Int    @default(1) // Points for this question in this quiz
+
+  quiz     Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  question QuizQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
 
   @@id([quizId, questionId])
   @@index([questionId])
@@ -146,57 +252,56 @@ model QuizTag {
   id     String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   quizId String @db.Uuid
   tag    String @db.VarChar(50)
-  
-  quiz   Quiz   @relation(fields: [quizId], references: [id], onDelete: Cascade)
-  
+
+  quiz Quiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
   @@unique([quizId, tag])
   @@index([tag])
 }
 
 model QuizAttempt {
-  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  quiz           Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
-  quizId         String       @db.Uuid
-  student        Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  studentId      String       @db.Uuid
-  
+  id          String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  quiz        Quiz        @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  quizId      String      @db.Uuid
+  userProfileId String    @db.Uuid
+  userProfile UserProfile @relation(fields: [userProfileId], references: [id], onDelete: Cascade)
+
   // Attempt metadata
-  startedAt      DateTime     @default(now())
-  completedAt    DateTime?
-  timeSpent      Int?         // in seconds
-  
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+  timeSpent   Int? // in seconds
+
   // Scoring
-  score          Float?       // percentage score (0-100)
+  score          Float? // percentage score (0-100)
   totalQuestions Int?
   correctAnswers Int?
-  totalPoints    Int?         // sum of points from correct answers
-  maxPoints      Int?         // maximum possible points
-  
+  totalPoints    Int? // sum of points from correct answers
+  maxPoints      Int? // maximum possible points
+
   // Status
-  status         AttemptStatus @default(IN_PROGRESS)
-  
-  answers        QuizAnswer[]
+  status AttemptStatus @default(IN_PROGRESS)
+
+  answers QuizAnswer[]
 
   @@index([quizId])
-  @@index([studentId])
+  @@index([userProfileId])
   @@index([startedAt])
-  @@index([status])
-  @@index([studentId, completedAt])
+  @@index([userProfileId, completedAt])
 }
 
 model QuizAnswer {
-  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  quizAttempt    QuizAttempt  @relation(fields: [quizAttemptId], references: [id], onDelete: Cascade)
-  quizAttemptId  String       @db.Uuid
-  question       QuizQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
-  questionId     String       @db.Uuid
-  
-  selectedOption String?      // For MCQ and TRUE_FALSE
-  textAnswer     String?      // For FILL_BLANK
+  id            String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  quizAttempt   QuizAttempt  @relation(fields: [quizAttemptId], references: [id], onDelete: Cascade)
+  quizAttemptId String       @db.Uuid
+  question      QuizQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  questionId    String       @db.Uuid
+
+  selectedOption String? // For MCQ and TRUE_FALSE
+  textAnswer     String? // For FILL_BLANK
   isCorrect      Boolean?
-  pointsEarned   Int          @default(0)
-  timeSpent      Int?         // in seconds
-  answeredAt     DateTime     @default(now())
+  pointsEarned   Int      @default(0)
+  timeSpent      Int? // in seconds
+  answeredAt     DateTime @default(now())
 
   @@index([quizAttemptId])
   @@index([questionId])
@@ -204,19 +309,27 @@ model QuizAnswer {
 }
 
 // Enums
+enum UserType {
+  STUDENT
+  TEACHER
+  PARENT
+  ADMIN
+}
+
 enum UserRole {
   STUDENT
   TEACHER
+  PARENT
   ADMIN
 }
 
 enum QuizType {
-  SYSTEM          // Created by admins/system
-  USER_CREATED    // Created by teachers/students
-  CHAPTER         // Legacy - chapter-based quiz
-  SUBJECT         // Legacy - subject-based quiz
-  MIXED           // Legacy - mixed content quiz
-  EXAM_SHEET      // Legacy - exam format
+  SYSTEM // Created by admins/system
+  USER_CREATED // Created by teachers/students
+  CHAPTER // Legacy - chapter-based quiz
+  SUBJECT // Legacy - subject-based quiz
+  MIXED // Legacy - mixed content quiz
+  EXAM_SHEET // Legacy - exam format
 }
 
 enum QuestionType {
