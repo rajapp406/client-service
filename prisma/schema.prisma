@@ -33,7 +33,6 @@ model UserProfile {
   schoolBranchId String?        @db.Uuid
   City           City?          @relation(fields: [cityId], references: [id])
   cityId         String?        @db.Uuid
-  quizAttempts   QuizAttempt[]
 
   @@index([userId])
   @@index([schoolId])
@@ -263,8 +262,7 @@ model QuizAttempt {
   id          String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   quiz        Quiz        @relation(fields: [quizId], references: [id], onDelete: Cascade)
   quizId      String      @db.Uuid
-  userProfileId String    @db.Uuid
-  userProfile UserProfile @relation(fields: [userProfileId], references: [id], onDelete: Cascade)
+  userId      String      // External user ID from user service
 
   // Attempt metadata
   startedAt   DateTime  @default(now())
@@ -284,9 +282,9 @@ model QuizAttempt {
   answers QuizAnswer[]
 
   @@index([quizId])
-  @@index([userProfileId])
+  @@index([userId])
   @@index([startedAt])
-  @@index([userProfileId, completedAt])
+  @@index([userId, completedAt])
 }
 
 model QuizAnswer {

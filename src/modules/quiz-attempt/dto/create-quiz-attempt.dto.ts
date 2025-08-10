@@ -12,12 +12,11 @@ export class CreateQuizAttemptDto {
   quizId: string;
 
   @ApiProperty({ 
-    description: 'Student ID (UUID)',
+    description: 'User ID (external user service)',
     example: '123e4567-e89b-12d3-a456-426614174001'
   })
   @IsString()
-  @IsUUID()
-  userProfileId: string;
+  userId: string;
 
   @ApiProperty({ 
     example: 1800, 

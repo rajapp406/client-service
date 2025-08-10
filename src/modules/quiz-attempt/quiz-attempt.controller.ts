@@ -68,13 +68,13 @@ export class QuizAttemptController {
   @Get('statistics')
   @ApiOperation({ summary: 'Get quiz attempt statistics' })
   @ApiQuery({ name: 'quizId', required: false, type: String, description: 'Filter by quiz ID' })
-  @ApiQuery({ name: 'studentId', required: false, type: String, description: 'Filter by student ID' })
+  @ApiQuery({ name: 'userId', required: false, type: String, description: 'Filter by user ID' })
   @ApiResponse({ status: 200, description: 'Return quiz attempt statistics.' })
   async getStatistics(
     @Query('quizId') quizId?: string,
-    @Query('studentId') studentId?: string,
+    @Query('userId') userId?: string,
   ) {
-    return    ResponseUtil.success(await this.quizAttemptService.getAttemptStatistics(quizId, studentId));
+    return ResponseUtil.success(await this.quizAttemptService.getAttemptStatistics(quizId, userId));
   }
 
   @Get('by-status/:status')
@@ -92,40 +92,60 @@ export class QuizAttemptController {
   @Get('quiz/:quizId')
   @ApiOperation({ summary: 'Get quiz attempts for a specific quiz' })
   @ApiParam({ name: 'quizId', description: 'Quiz ID' })
-  @ApiQuery({ name: 'includeRelations', required: false, type: Boolean, description: 'Include related data' })
+  @ApiQuery({ name: 'includeAnswers', required: false, type: Boolean, description: 'Include quiz answers' })
+  @ApiQuery({ name: 'includeQuiz', required: false, type: Boolean, description: 'Include quiz information' })
+  @ApiQuery({ name: 'includeQuestions', required: false, type: Boolean, description: 'Include quiz questions (requires includeQuiz=true)' })
   @ApiResponse({ status: 200, description: 'Return quiz attempts for the quiz.', type: [QuizAttempt] })
   @ApiResponse({ status: 404, description: 'Quiz not found.' })
   async getAttemptsByQuiz(
     @Param('quizId', ParseUUIDPipe) quizId: string,
-    @Query('includeRelations', new ParseBoolPipe({ optional: true })) includeRelations?: boolean,
+    @Query('includeAnswers', new ParseBoolPipe({ optional: true })) includeAnswers?: boolean,
+    @Query('includeQuiz', new ParseBoolPipe({ optional: true })) includeQuiz?: boolean,
+    @Query('includeQuestions', new ParseBoolPipe({ optional: true })) includeQuestions?: boolean,
   ) {
-    return ResponseUtil.success(await this.quizAttemptService.getAttemptsByQuiz(quizId, includeRelations));
+    return ResponseUtil.success(
+      await this.quizAttemptService.getAttemptsByQuiz(quizId, {
+        includeAnswers,
+        includeQuiz,
+        includeQuestions,
+      })
+    );
   }
 
-  @Get('student/:studentId')
-  @ApiOperation({ summary: 'Get quiz attempts for a specific student' })
-  @ApiParam({ name: 'studentId', description: 'Student ID' })
+  @Get('user/:userId')
+  @ApiOperation({ summary: 'Get quiz attempts for a specific user' })
+  @ApiParam({ name: 'userId', description: 'User ID' })
   @ApiQuery({ name: 'includeRelations', required: false, type: Boolean, description: 'Include related data' })
-  @ApiResponse({ status: 200, description: 'Return quiz attempts for the student.', type: [QuizAttempt] })
-  @ApiResponse({ status: 404, description: 'Student not found.' })
-  async getAttemptsByStudent(
-    @Param('studentId', ParseUUIDPipe) studentId: string,
+  @ApiResponse({ status: 200, description: 'Return quiz attempts for the user.', type: [QuizAttempt] })
+  @ApiResponse({ status: 404, description: 'User not found.' })
+  async getAttemptsByUser(
+    @Param('userId') userId: string,
     @Query('includeRelations', new ParseBoolPipe({ optional: true })) includeRelations?: boolean,
   ) {
-    return ResponseUtil.success(await this.quizAttemptService.getAttemptsByStudent(studentId, includeRelations));
+    return ResponseUtil.success(await this.quizAttemptService.getAttemptsByUser(userId, includeRelations));
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get a quiz attempt by ID' })
   @ApiParam({ name: 'id', description: 'Quiz attempt ID' })
-  @ApiQuery({ name: 'includeRelations', required: false, type: Boolean, description: 'Include related data' })
+  @ApiQuery({ name: 'includeAnswers', required: false, type: Boolean, description: 'Include quiz answers' })
+  @ApiQuery({ name: 'includeQuiz', required: false, type: Boolean, description: 'Include quiz information' })
+  @ApiQuery({ name: 'includeQuestions', required: false, type: Boolean, description: 'Include quiz questions (requires includeQuiz=true)' })
   @ApiResponse({ status: 200, description: 'Return the quiz attempt.', type: QuizAttempt })
   @ApiResponse({ status: 404, description: 'Quiz attempt not found.' })
   async findOne(
     @Param('id', ParseUUIDPipe) id: string,
-    @Query('includeRelations', new ParseBoolPipe({ optional: true })) includeRelations?: boolean,
+    @Query('includeAnswers', new ParseBoolPipe({ optional: true })) includeAnswers?: boolean,
+    @Query('includeQuiz', new ParseBoolPipe({ optional: true })) includeQuiz?: boolean,
+    @Query('includeQuestions', new ParseBoolPipe({ optional: true })) includeQuestions?: boolean,
   ) {
-    return ResponseUtil.success(await this.quizAttemptService.findOne(id, includeRelations));
+    return ResponseUtil.success(
+      await this.quizAttemptService.findOne(id, {
+        includeAnswers,
+        includeQuiz,
+        includeQuestions,
+      })
+    );
   }
 
   @Patch(':id')

@@ -121,10 +121,10 @@ export class QuizController {
   ) {
     const result = await this.quizService.findQuizzesByChapter(chapterId, page, limit);
     return ResponseUtil.paginated(
-      result.items,
-      result.meta.total,
-      result.meta.page,
-      result.meta.limit,
+      result.data,
+      result.pagination.total,
+      result.pagination.page,
+      result.pagination.limit,
       'Quizzes retrieved successfully'
     );
   }

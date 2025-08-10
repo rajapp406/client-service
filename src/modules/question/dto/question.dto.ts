@@ -52,8 +52,11 @@ export class QuestionDto {
 
   @ApiProperty({
     description: 'Array of possible answers',
-    example: ['2', '3', '4', '5'],
-    type: [String]
+    example: [{
+      text: '1, 4, 9, 16, 25',
+      isCorrect: true,
+      explanation: 'These numbers are perfect squares of whole numbers: 1², 2², 3², 4², and 5².'
+    }],
   })
   @IsArray()
   @IsString({ each: true })

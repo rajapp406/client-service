@@ -59,7 +59,7 @@ model QuizQuestion {
   options       Json
   correctAnswer String
   explanation   String?
-  difficulty    Difficulty    @default(medium)
+  difficulty    Difficulty    @default(MEDIUM)
   createdAt     DateTime      @default(now())
   quizAnswers   QuizAnswer[]
 
